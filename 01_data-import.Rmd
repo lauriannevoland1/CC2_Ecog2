@@ -1,0 +1,15 @@
+---
+title: "Data import CC2"
+output: html_notebook
+---
+
+Importation des données de la Rade de Brest : 
+```{bash}
+wget https://pagesperso.univ-brest.fr/~maignien/teaching/M1-MFA/UE-Ecogenomique2/EcoG2_data_cc2.tar.gz
+```
+
+Dézipage des données de la Rade de Brest 
+```{bash}
+tar xzvf EcoG2_data_cc2.tar.gz
+```
+
