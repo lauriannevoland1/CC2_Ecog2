@@ -145,3 +145,8 @@ head(taxa.print)
 
 ```
 
+
+```{r}
+save.image(file="02_Dada2_tutorial_FinalEnv")
+```
+
