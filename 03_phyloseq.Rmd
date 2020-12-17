@@ -91,11 +91,11 @@ l’indice de Simpson est sensibles aux variations d’importance des espèces l
 plot_richness(ps, x="Date", measures=c("Shannon", "Simpson"), color="Profondeur")
 ```
 
-l’indice  de  Shannon  est  sensible  aux  variations  d’importance  des  espèces les plus rares. Lorsque l'indice de Shannon est bas, cela signifie que des espèces rares sont retrouvées plus facilement et qu'il y a une espèce plus présente par rapport aux autres, par exemple pour la surface le 10 septembre 2014, on a un indice de Shannon qui est inférieur à 4,5. Pour le médian, un indice entre 4,5 et 4,8 et pour le fond, un indice supérieur à 5,1. Cela signifie donc, il y a plus d'espèces rares de manière croissante en partant du fond vers la surface. En revanche, en mars 2015, l'indice de Shannon est supérieur à 5,1 qu'on se trouve en fond ou à la surface, ceci montre ainsi qu'il y a peu d'espèce rare. Il y a donc une grande différence des espèces en surface selon les deux dates. En effet il y a beaucoup plus d'espèces rares en 2014. L'abondance en fond est donc mieux répartie. 
+Lorsque l'indice de Shannon est bas, cela signifie que des espèces rares sont retrouvées plus facilement et qu'il y a une espèce plus présente par rapport aux autres, par exemple pour la surface le 10 septembre 2014, on a un indice de Shannon qui est inférieur à 4,5. Pour le médian, un indice entre 4,5 et 4,8 et pour le fond, un indice supérieur à 5,1. Cela signifie donc, il y a plus d'espèces rares de manière croissante en partant du fond vers la surface. En revanche, en mars 2015, l'indice de Shannon est supérieur à 5,1 qu'on se trouve en fond ou à la surface, ceci montre ainsi qu'il y a peu d'espèce rare. Il y a donc une grande différence des espèces en surface selon les deux dates. En effet il y a beaucoup plus d'espèces rares en 2014. L'abondance en fond est donc mieux répartie. 
 
-l’indice de Simpson est sensibles aux variations d’importance des espèces les plus abondantes. Lorsque l'indice de Simpson tends vers 0, cela signifie que les échantillons représentent une grande diversité, contrairement à 1 qui représente une faible diversité. Pour les échantillons de 2014, les surfaces sont compris entre 0,96 et 0,95, les médians entre 0,97 et 0,98 et enfin les fonds sont supérieurs à 0,98. Les échantillons de la surface présentent une forte diversité par rapport à ceux du fond, cependant, il faut prendre en compte que l'indice de Simppson, que tout les échantillons tendent vers 1 et ne sont donc pas significatifs. Il faudrait, pour cela effectuer des tests statiitiques. 
+Lorsque l'indice de Simpson tends vers 0, cela signifie que les échantillons représentent une grande diversité, contrairement à 1 qui représente une faible diversité. Pour les échantillons de 2014, les surfaces sont compris entre 0,96 et 0,95, les médians entre 0,97 et 0,98 et enfin les fonds sont supérieurs à 0,98. Les échantillons de la surface présentent une forte diversité par rapport à ceux du fond, cependant, il faut prendre en compte que l'indice de Simppson, que tout les échantillons tendent vers 1 et ne sont donc pas significatifs. Il faudrait, pour cela effectuer des tests statiitiques. 
+
 Pour mars 2015, tous les échntillons que ce soit en fond ou en surface, les indices sont supérieurs à 0,98, ils présentent donc une plus faible diversité. On voit bien qu'il y a une différence au niveau de la diversité aux différents moments de l'année. Les résultats avec l'indice de Shannon concordent avec ceux de l'indice de Simpson.
-
 
 
 ## Filtrage de la taxonomie
@@ -115,6 +115,11 @@ Table : permet faire un tableau de contingence en fonction de différents facteu
 ```{r}
 table(tax_table(ps)[, "Phylum"], exclude = NULL)
 ```
+Certaines espèces sont retrouvé que une fois dans les échantillons comme les  Campilobacterota, Hydrogenedentes,Dependentiae, Elusimicrobiota. 
+Le phylum le plus important est celui des Proteobacteria avec ensuitre celui des Bacteroidota.
+Il y a deu
+          
+
 
 ### Créer une table avec le nombre dans chaque phyla
 ```{r}
@@ -329,16 +334,20 @@ plot_ordination(pslog, out.dpcoa.log, type = "species", color = "Phylum") +
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:10]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
-plot_bar(ps.top20, x="Date", fill="Phylum") + facet_wrap(~Profondeur, scales="free_x")
+plot_bar(ps.top20, x="Date", fill="Phylum", title="Obersvation des phyla les plus importants des bactéries") + facet_wrap(~Profondeur, scales="free_x")
 ```
 
+Le phylum des Cyanobactéries se retouve principalement en surface et en zone médiane, cela s'explique par le fait que ces bactéries, pour leur croissance, ont besoin de lumière, ce qui est cohérent. En septembre, il est normal de retrouver plus de cyanobactéries comparé au mois mars puisque l'été synonyme de soleil est passé. Ces bactéries ont plus eu le temps de se développer.
+La majorité des communautés est représenté par le phylum de Proteobacteria. Dans la table taxa.print, ces Protéobactéries sont subdivisé en deux groupes retrouvés : les alphaprotéobactéries et les gammaprotéobactéries. Ces dernières peuvent se retrouver dans les intestins mais aussi dans l'eau de pluie. Le temps breton étant propice aux intempéries pluvieuses, il serait donc normal de retrouver ce type de bactéries. 
 
+L'abondance des commautés retrouvée en mars 2015 que ce soit au fond ou en surface, garde la même tendance et les même proportion.C'est cohérent avec la PCoA effectuée précédemment. 
+Concernant les échnatillonnages de septembtre 2014, dans le fond, parmis les espèces les plus abondantes le phylum Bacteroidota est présent en plus forte quantité. Pour le niveau médian et la surface, le niveau d'abondance est sensiblement le même. C'est cependant au niveau des phyla Cyanobacteria, Marinimicrobia qu'une variation est visible. Ici encore, ceci correspond aux résultats étudiés lors de la PCoA.
 
 ```{r}
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
-plot_bar(ps.top20, x="Date", fill="Genus") + facet_wrap(~Profondeur, scales="free_x")
+plot_bar(ps.top20, x="Date", fill="Genus", title="Obersvation des genres les plus importants des bactéries") + facet_wrap(~Profondeur, scales="free_x")
 ```
 
 Pour le fond de la rade de Brest pour les deux dates, on retrouve en plus grande proportion le genre de clade Ia (vert), puis en plus ptit quantité les SUP05 cluster (violet) et apres les NS5 marine group (bleu). Sachant qu'il y a une grande propotion dans les deux cas de NA. 
@@ -356,7 +365,7 @@ Globalement on a un genre qui se trouve dans n'importe qu'elle profondeur qu'ell
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[175:179]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
-plot_bar(ps.top20, x="Date", fill="Phylum",title="Obersvation des phyla avec le phylum crenarche") + facet_wrap(~Profondeur, scales="free_x")
+plot_bar(ps.top20, x="Date", fill="Phylum",title="Obersvation des phyla avec le phylum crenarchaeota (archée)") + facet_wrap(~Profondeur, scales="free_x")
 ```
 
 ```{r}
