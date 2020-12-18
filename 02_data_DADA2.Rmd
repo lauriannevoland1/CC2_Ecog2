@@ -1,21 +1,26 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "02_data_DADA2"
+output:
+  github_document:
+    toc: yes
+    toc_depth: 5
 ---
 
-library 
+# library 
 ```{r}
 library(dada2)
 library(ggplot2)
 ```
 
-
-
+Les données ont été mis dans une fichier Seq_stratif. Les données seront attribuer une variable
 ```{r}
 path <- "~/CC2_Ecog2/Seq_stratif" # CHANGE ME to the directory containing the fastq files after unzipping.
 list.files(path)
 ```
 
+Nous allons filtrer les séquences en fonction des Fowards et des Reverse  
+
+fn : nouvelle variable qui recoit une liste de  fichier, recoit les R1 trié par ordre alphabétique pour Rs : la même chose pour les R2.
 
 
 ```{r}
@@ -26,17 +31,27 @@ fnRs <- sort(list.files(path, pattern="_R2.fastq", full.names = TRUE))
 sample.names <- sapply(strsplit(basename(fnFs), "R"), `[`, 1)
 ```
 
+On cherche les profils qualité
 
+Le score de qualité est calcules pour chaque base. Un score de Q30 signifie qu'il y a une chance sur 1000 que la base soit fausee.En dessous de Q30 , le score de qualité est dis trop faible , donc on enleveras toutes les séquence en dessous de Q30.
 ```{r}
 plotQualityProfile(fnFs[1:2])
 ```
-
+Dans l'ensemble les fowards on un bon score de qualité. C'est jutse avant 250 que le score chute en dessous de Q30. Nous allons donc pour les fowards on couper à 240. 
 
 ```{r}
 plotQualityProfile(fnRs[1:2])
 ```
 
+Dans l'ensemble les reverse on un mauvais score de qualité comparée au foward. C'est apres 150 nt que le score baisse. Mais si on coupe a 150 nous aurons pas de overlap entr les fowards et reverse. Nous allons donc couper à 200. Mais il faudra savoir qu'il y a une partie qu'il y a une mauvais score de qualité. Et en plus comme il y primes 21nt , il faut couper a 200nt
 
+
+On attribue les noms de fichiers pour les fichiers fastq.gz filtrés.
+On crée les variables : 
+-FiltFs : Place les fichiers filtrés avant 
+-filtRs : Place les fichers filtré arrière 
+-names filtFs : place les noms des fichiers filtré des reads avant avec leurs noms associés 
+-names FiltRs : place les noms des fichiers filtré des reads arrière avec leurs noms associés 
 ```{r}
 # Place filtered files in filtered/ subdirectory
 filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
@@ -46,6 +61,16 @@ names(filtRs) <- sample.names
 ```
 
 
+
+Les paramètres de filtrage et découpage standard : 
+-maxN=0 (DADA2 ne nécessite pas de Ns), 
+-truncQ=2 : on va tronquer pour les reads avant a 240 et 200 pour les reads arrières
+-rm.phix=TRUE 
+-maxEE=2  -> le nombre maximum d'"erreurs attendues" autorisées dans une lecture, ce qui est un meilleur filtre que la simple moyenne des scores de qualité.
+
+Pour les foward on couperas à 240. Mais si on coupe a 150 pour les reverses nous aurons pas de overlap entr les fowards et reverse. Nous allons donc couper à 200. Mais il faudra savoir qu'il y a une partie qu'il y a une mauvais score de qualité. Et en plus comme il y primes 21nt , il faut couper a 200nt
+
+
 ```{r}
 out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=21,
               maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
@@ -53,34 +78,89 @@ out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=21,
 head(out)
 ```
 
+On obtient le nombre de nucléotide qui sont des le départ (reads.in) et apres filtrage et découpe (read.out). Pour le reads FOND du 10 sept 2014 R1 : 159971 et apres filtration on obtient : 145448 . Il y a donc 14 523 nucléotides qui ont été enlevers
+
+# Apprentissage des erreurs :
+
+Il est possible d'avoir des erreurs, avec Dada2, on va inspecter les séquences et voir les erreurs. 
+On utilise un modèle d'erreur paramétrique err pour les reads avant et arrière. 
+
+But : le modèle d'erreur de DADA2 permet identifier les positon avec forte probabilité d'erreur et donc par la suite changer avec la base la plus probable, qui ressemble donc plus à la séquence majoritaire proche abondande.
+
+On crée les variables : 
+-errF : reçoit le modèle d'erreur paramétrique par la méthode LearnErrors pour les read avant filtré (tronqué
+
 ```{r}
 errF <- learnErrors(filtFs, multithread=TRUE)
 ```
+Il y a 105752691 bases totales en 139642 reads avant à partir de 20 échantillons seront utilisées pour connaître les taux d'erreur.
 
+
+-errR : recoit le modèle d'erreur paramétrique par la méthode LearnErrors pour les read arrière filtré (tronqué)
 
 ```{r}
 errR <- learnErrors(filtRs, multithread=TRUE)
 ```
+Il y a 100755162 bases totales en 139642 read arrière à partir de 20 échantillons seront utilisées pour connaître les taux d'erreur
 
+
+
+# Visualitaion des modèles d'erreur du foward 
+
+x: probabilité 
+y: Qsocre
+C'est la probabilité d'une mutation en fonction du Qscore 
+
+ex Q40 : la probabilité dont la base trouvée est la bonne 
+ex Q10 : la probabilité dont la base ne soit pas la bonne ( ex: A donne un C)
 
 ```{r}
 plotErrors(errF, nominalQ=TRUE)
 ```
+Chaque transition (mutation) possible (A→C, A→G, ...) le taux d'erreur sont indiqués. 
+-points : les taux d'erreur observés pour chaque score de qualité du consensus. 
+-ligne noire : taux d'erreur estimés après convergence de l'algorithme d'apprentissage machine. 
+-ligne rouge : taux d'erreur attendus selon la définition nominale du Q-score.
 
+Les taux d'erreur estimés (ligne noire) correspondent bien aux taux observés (points), et les taux d'erreur diminuent avec l'augmentation de la qualité comme prévue. Tout semble raisonnable et nous procédons avec confiance.
 
 ```{r}
 plotErrors(errR, nominalQ=TRUE)
 ```
+# Exemple d'inférence
 
+-variable dadaFS appliquer les modèles d'erreurs pour les read avant (qui on été filtré avant)
+-objet dadaFs : plein d'information comme l'abondance séquence, les séquences, le clustering, les err_in et err_out, la qualité..
+Il y aura affichage des séquence uniques dans chaque échantilon pour les reads avant. 
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
 ```
 Nous regardons le nombre de séquence uniques dans nos jeu données.  Pour l'échantillon 1, nous avons 145558 read avec au total 37907 séquence uniques pour les fowards
 
+
+
+Apliquer au Reverse:
+
+-variable dadaRS appliquer les modèles d'erreurs pour les read arrière ( qui on été filtré avant)
+-objet dadaRs : plein d'information (idem que dadaFS) comme l'abondance séquence, les séquences, le clustering, les err_in et err_out, la qualité..
 ```{r}
 dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 ```
+Nous regardons le nombre de séquence uniques dans nos jeu données.  Pour l'échantillon 1, nous avons 145558 read avec au total 45486 séquence uniques pour les fowards.
 
+
+
+
+
+# Aligner les R1 et R2 en contigs
+but : Faire des contigs avec les reads 1 ( reads avant) et 2 (reads arrière)
+
+Ici c'est posssible car amplification du V4 de l'ARN 16S il y a donc un overlap avec read1 et read2 
+
+
+-verbose : montrer les étape avec du texte pendant qu'elle sont réalisé 
+-objet merge: liste de data.frames de chaque échantillon. Chaque data.frame contient la séquence fusionnée, son abondance, et les indices des variantes de la séquence avant et arrière qui ont été fusionnées. Les lectures appariées qui ne se chevauchaient pas exactement ont été supprimées par mergePairs, ce qui a permis de réduire davantage les sorties parasites.
+-head merge : regarder la première ligne
 ```{r}
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
 # Inspect the merger data.frame from the first sample
@@ -89,18 +169,51 @@ seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
 ```
 
+# Construire table obersavation 
+
+Construire d'une table de variant de séquences d'amplicon (ASV), une version à plus haute résolution de la table OTU produite par les méthodes traditionnelles.
+
+On va partir de l'abondance, on crée la table à partir de merger
+
+-object seqtab : une table avec en ligne le nombre d'échantillon, en colonne les séquences elle-même à l'intérieur ou on observer la séquence dans l'échantillon 
+-dim : récupérer ou définir la dimension d'un objet.
+
+Regarde les distributions des longueurs des séquences.
+On applique la fonction de dada2 getSequences, il va calculer combien il y a de caractère dans chaque séquence. 
+Dans seq table j'ai une séquence de 251 nt ...
+Rien d'aberrants
 ```{r}
 # Inspect distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 ```
+
+Tableau de séquences : une matrice avec des lignes correspondant aux échantillons (et nommées par eux) et des colonnes correspondant aux variantes de séquences (et nommées par elles). Ce tableau contient 293 ASV, et les longueurs de nos séquences fusionnées se situent toutes dans la plage prévue pour cet amplicon V4.
+
 # Chimères
+
+Pendant l'amplification pendant PCR, en théorie amplifier avec les primer 
+Avec le primers des Foward , on crée la séquence complémentaire, mais pour x ou y, l'élongation s'arrête 
+on aura le 16 S qui n'aura pas bouger et un autre fragment sb plus court , le cycle d'après (PCR) , on va avoir un des fragment 16 S (le rouge et l'incomplet) qui vont s'hybrider sur un autre fragment 16 S comme un primer et donc continuer élongation (verte) pour donner un une séquence hybride à la fin qui sera le début du rouge et a la fin du vert
+c'est rare , mais quand plein de séquence possible et il faut les enlever du jeu de données 
+Il n'est pas possible de détecter au niveau de la taille car elle sont la même taille que les autres séquences 
+
+Il va regarder toutes les séquences rare dont le début correspond à une séquence parent dans le même jeu donnée et la fin d'une autre séquence parents
+Appliquer a seqtab 
+Et transférer à une la nouvelle variable seqtab.nochim
+
 ## Enlever les chimères par méthode consensus 
+
 
 ```{r}
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 dim(seqtab.nochim)
 ```
 
+#calculer les ratios
+
+-somme de seqtabl : ensemble des abondance relative de chacun des échantilons 
+-somme de la table seqtab.nochim : ensemble des abondace relative sans les séquence chimériques
+On aura le nombre de séquences chimériques dans la table d'obersation
 ```{r}
 sum(seqtab.nochim)/sum(seqtab)
 ```
@@ -110,6 +223,21 @@ Il y a environ 77 % qui ne sont pas des chimères , donc que l'alignement c'est 
 ```
 
 On a 22 % de chimère dans notre jeu de donnée 
+
+
+
+# Résultat des filtre de qualités 
+
+Nous allons vérifier notre progression, nous examinerons le nombre de lectures effectuées à chaque étape du pipeline.
+Nous allons donc construire une table pour suivre le nombre de séquence enlever à chaque étapes de bioinformatique.
+
+-object getN : fonction de x qui est la somme de getUniques 
+-get uniques : extrait les séquence uniques d'un objet dada 
+-cbind : concaténer plusieur valeur : le nombre de reads après le filtre qualité + appliquer chaque ligne getN pour les dada + les séquence non chimériques. 
+- crée la table trac : conconténation
+
+c= valeur définir dans le vecteur 
+cbind = n'importe quoi , détecter la nature des objets
 ```{r}
 # Construction d'une table 
 getN <- function(x) sum(getUniques(x))
@@ -120,23 +248,37 @@ rownames(track) <- sample.names
 head(track)
 ```
 
+On obtient une table qui montre l'évolution du nombre de séquence à chaque opération. En colonne les différentes étape de bioinformatique : la séquence de base, apres le filtrage, contids, sans les chimères
+on est partie de 7793 pour arriver a 6539 contigs pour le F3D0.
+
 #Assignation taxonomique
+
+pour assigner il faut 2 chose: un algorithme et une base de référence. Il existe un assigneur dans Dada2, il va aller regarder dans une base de donnée qui ont des taxonomies. La base de réfénces peut être Green genes ou silva. Ici il sera question de la base de donné silva 138
+
+Il faut charger les base de donné silva 138 en fa.gz avec le code présent dans le script 001_data-import
+
+
+La taxonomie de silva va êter assigner a la table qui ne contient pas les chimères donc les contigs ( ASV) 
 
 Nous allon assigné une taxonomie allant du règne , phylum, class, ordre, fammille, genre et espèce. 
 ```{r}
 taxa <- assignTaxonomy(seqtab.nochim, "~/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
 ```
 
-24 archées : jusqu'a la fammile pour les crnéarchée et pour les thermoplasma jusqu'a l'ordre
-Crenarchaeota, Nitrososphaeria, Nitrosopumilales, Nitrosopumilaceae, Candidatus Nitrosopumilus   3
+24 archées : jusqu'a la fammile pour les crénarchée et pour les thermoplasma jusqu'a l'ordre
+Crenarchaeota, Nitrososphaeria, Nitrosopumilales, Nitrosopumilaceae, Candidatus Nitrosopumilus  : 3
 
-Crenarchaeota, Nitrososphaeria, Nitrosopumilales, Nitrosopumilaceae, Candidatus Nitrosopelagicus  3
+Crenarchaeota, Nitrososphaeria, Nitrosopumilales, Nitrosopumilaceae, Candidatus Nitrosopelagicus : 3
 
-Thermoplasmatota, Thermoplasmata ,Marine Group II 18 
+Thermoplasmatota, Thermoplasmata ,Marine Group II  : 18 
 
-1,533 Bactérie : 
+1,533 Bactérie. 
+
+On a donc au final 1557 taxa. 
 
 
+On peut voir que le règne a été attribuer comme les phylum, la class , Ordre et la Famille. Il y a que pour certain ASV qu'il y a eu assignation taxonomique du Genre 
+Il faut charger une nouvelle base de donné silva 138 en fa.gz plus specifique pour les espèces avec le code présent dans le script 001_data-import. Avec cette assignation on essaye d'avoir des nom d'espèce qui n'aurait pas été trouvé précédement
 ```{r}
 taxa <- addSpecies(taxa, "~/silva_species_assignment_v138.fa.gz")
 taxa.print <- taxa # Removing sequence rownames for display only
